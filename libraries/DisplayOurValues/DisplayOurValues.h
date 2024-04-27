@@ -27,12 +27,11 @@ class DisplayOurValues {
     DisplayOurValues();
 	void setup();
     void showTestValues(int out_pin = 28, int in_pin = 27);
-    void testdrawchar();
-    void testdrawstyles();
 	void displayIRValues();
 	void displayValue(String input, bool invert);
 	void displayMenu();
 	void goToMenu();
+	void clear();
 
 	void setMenuIndex(int index);
 	void setMenuType(menuTypes type);
@@ -54,10 +53,6 @@ class DisplayOurValues {
 	static const int selPtNumsLength = 2;
 	static const int confirmSelectionLength = 4;
 	static const int displayValueMenuLength = 3;
-	const int down_ir_pin = 29;
-	const int front_ir_pin = 26;
-	const int in_ir_pin = 27;
-	const int out_ir_pin = 28;
 	
 	int pinToDisplay;
 	

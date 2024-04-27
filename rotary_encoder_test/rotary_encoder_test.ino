@@ -1,30 +1,41 @@
-#include "pio_encoder.h"
+#include <Encoder.h>
 
-#define CLK 14
-#define DT  15
+#define CLK 16
+#define DT  17
 #define SW  2
-#define LED1 22
-#define LED2 21
-#define LED3 20
+#define LED1 10
+#define LED2 11
+#define LED3 12
 
-PioEncoder encoder(14);
+Encoder encoder;
 
 
-long pos = -999;
+long pos = -99;
 long new_pos;
 
+/*
+void checkPosition() {
+  encoder.tick();
+}
+*/
+
 void setup() {
-  encoder.begin();
+  /*
+  attachInterrupt(digitalPinToInterrupt(CLK), checkPosition, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(DT ), checkPosition, CHANGE);
+  */
   pinMode(SW, INPUT);
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
   Serial.begin(115200);
   while(!Serial);
+  encoder.attach(DT, CLK);
+
 }
 
 void loop() {
-  new_pos = encoder.getCount()  >> 1;
+  new_pos = encoder.getPosition() / 2;
   if (new_pos != pos) {
     digitalWrite(LED3, HIGH);
     Serial.println(String(new_pos) + "  |  " + String(pos));

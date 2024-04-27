@@ -16,6 +16,7 @@
 
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+//Although, for some reason, 0x3C is what works with out 128x64s
 Adafruit_SSD1306 adaSSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define NUMFLAKES     10 // Number of snowflakes in the animation example
@@ -52,7 +53,9 @@ void DisplayOurValues::showTestValues(int out_pin, int in_pin)
 }
 
 void DisplayOurValues::setup(void) {
-  Serial.begin(9600);
+	if(!Serial) {
+		Serial.begin(9600);
+	}
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!adaSSD1306.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -67,71 +70,10 @@ void DisplayOurValues::setup(void) {
 
   // Clear the buffer
   adaSSD1306.clearDisplay();
-
-  // Draw a single pixel in white
-  adaSSD1306.drawPixel(10, 10, SSD1306_WHITE);
-
-  // Show the display buffer on the screen. You MUST call display() after
-  // drawing commands to make them visible on screen!
-  adaSSD1306.display();
-  delay(2000);
-  // adaSSD1306.display() is NOT necessary after every single drawing command,
-  // unless that's what you want...rather, you can batch up a bunch of
-  // drawing operations and then update the screen all at once by calling
-  // adaSSD1306.display(). These examples demonstrate both approaches...
-
-  testdrawchar();
-
-  testdrawstyles();
-
-  // Invert and restore display, pausing in-between
-  adaSSD1306.invertDisplay(true);
-  delay(1000);
-  adaSSD1306.invertDisplay(false);
-  delay(1000);
-}
-
-void DisplayOurValues::testdrawchar(void) {
-  adaSSD1306.clearDisplay();
-
-  adaSSD1306.setTextSize(1);      // Normal 1:1 pixel scale
-  adaSSD1306.setTextColor(SSD1306_WHITE); // Draw white text
-  adaSSD1306.setCursor(0, 0);     // Start at top-left corner
-  adaSSD1306.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-  // Not all the characters will fit on the display. This is normal.
-  // Library will draw what it can and the rest will be clipped.
-  for(int16_t i=0; i<256; i++) {
-    if(i == '\n') adaSSD1306.write(' ');
-    else          adaSSD1306.write(i);
-  }
-
-  adaSSD1306.display();
-  delay(2000);
-}
-
-void DisplayOurValues::testdrawstyles(void) {
-  adaSSD1306.clearDisplay();
-
-  adaSSD1306.setTextSize(1);             // Normal 1:1 pixel scale
-  adaSSD1306.setTextColor(SSD1306_WHITE);        // Draw white text
-  adaSSD1306.setCursor(0,0);             // Start at top-left corner
-  adaSSD1306.println(F("Hello, world!"));
-
-  adaSSD1306.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Draw 'inverse' text
-  adaSSD1306.println(3.141592);
-
-  adaSSD1306.setTextSize(2);             // Draw 2X-scale text
-  adaSSD1306.setTextColor(SSD1306_WHITE);
-  adaSSD1306.print(F("0x")); 
-  adaSSD1306.println(0xDEADBEEF, HEX);
-
-  adaSSD1306.display();
-  delay(2000);
 }
 
 void DisplayOurValues::displayValue(String input, bool invert) {
-
+	adaSSD1306.setTextSize(1);
 	if (invert) {
 		adaSSD1306.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
 	} else {
@@ -140,7 +82,7 @@ void DisplayOurValues::displayValue(String input, bool invert) {
 	adaSSD1306.println(input);
 	adaSSD1306.display();
 }
-
+/*
 void DisplayOurValues::displayIRValues() {
 	adaSSD1306.print("Down IR: ");
 	adaSSD1306.println(analogRead(down_ir_pin));
@@ -150,7 +92,7 @@ void DisplayOurValues::displayIRValues() {
 	adaSSD1306.println(analogRead(in_ir_pin));
 	adaSSD1306.print("Outer Left IR: ");
 	adaSSD1306.println(analogRead(out_ir_pin));
-}
+}*/
 
 void DisplayOurValues::goToMenu() {
 	menuTypes menu = getMenuType();
@@ -287,6 +229,11 @@ void DisplayOurValues::goToMenu() {
 				break;
 		};
     };
+}
+
+void DisplayOurValues::clear() {
+	adaSSD1306.clearDisplay();
+	adaSSD1306.setCursor(0,0);
 }
 
 DisplayOurValues::menuTypes DisplayOurValues::getMenuType() {

@@ -1,29 +1,33 @@
 #include <Motor.h>
+//#include <Music.h>
 #include <Servo.h>
+#include <Encoder.h>
+#include <DisplayOurValues.h>
 
-#define STOP     2
-#define START    3
+#define STOP     17
+#define START    16
 #define DISP_SDA 4
 #define DISP_SCL 5
-#define LEFT_A   6
-#define LEFT_B   7
-#define RIGHT_A  8
-#define RIGHT_B  9
+#define LEFT_A   24
+#define LEFT_B   23
+#define RIGHT_A  22
+#define RIGHT_B  21
 #define RED      10
 #define GREEN    11
 #define YELLOW   12
 #define BUZZER   13
 #define SERVO    14
-#define ENC_A    15
-#define ENC_B    16
-#define ENC_S    17
-#define BRAKE    23
-#define TURN_L   24
-#define TURN_R   25 //also BUILTIN_LED
-#define IR_F     26
+#define ENC_B    20
+#define ENC_A    18
+#define ENC_S    19
+#define BRAKE    25 //also BUILTIN_LED
+#define TURN_L   2
+#define TURN_R   3
+#define IR_F     28
 #define IR_I     27
-#define IR_O     28
+#define IR_O     26
 #define IR_D     29
+
 
 enum class test_state: uint8_t {
   LIGHTS        = 0,
@@ -37,20 +41,26 @@ enum class test_state: uint8_t {
   OUTSIDE_IR    = 8,
   DOWN_IR       = 9
 };
-
-
+DisplayOurValues display;
 Servo servo;
+Encoder encoder;
+int encoder_position = 0;
 Motor left(LEFT_A, LEFT_B);
 Motor right(RIGHT_A, RIGHT_B);
+int servo_center = 90;
+int turn_radius = 60;
+unsigned long oldTime = 0;
 
-test_state state = test_state::LIGHTS;
+volatile test_state state = test_state::LIGHTS;
 
 void setup() {
   //initialize servo and motors
-  Serial.begin(9600);
-  while(!Serial);
+  if(!Serial) {
+    Serial.begin(9600);
+  }
   servo.attach(SERVO);
   servo.write(90);
+  encoder.attach(ENC_A, ENC_B, Encoder::LatchMode::TWO03);
   left.begin(); 
   left.brake();
   right.begin();
@@ -66,11 +76,8 @@ void setup() {
   pinMode(TURN_R, OUTPUT);
 
   //initialize inputs
-  pinMode(ENC_A, INPUT);
-  pinMode(ENC_B, INPUT);
-  pinMode(ENC_S, INPUT);
-  pinMode(STOP,  INPUT);
-  pinMode(START, INPUT);
+  pinMode(STOP,  INPUT_PULLUP);
+  pinMode(START, INPUT_PULLUP);
   pinMode(IR_F,  INPUT);
   pinMode(IR_I,  INPUT);
   pinMode(IR_O,  INPUT);
@@ -80,7 +87,7 @@ void setup() {
 }
 
 void backISR() {
-  state = (test_state)(((int)state - 1) % 10);
+  state = (test_state)(((((int)state - 1) % 10) + 10) % 10);
   resetAll();
 }
 
@@ -91,10 +98,17 @@ void forwardISR() {
 
 void loop() {
   test_state curr_state = state;
+  
   switch (curr_state) {
     case test_state::LIGHTS:
-      digitalWrite(TURN_L, HIGH);
-      digitalWrite(TURN_R, HIGH);
+      if(millis() > oldTime + 1000) {
+        oldTime = millis();
+        digitalWrite(TURN_L, HIGH);
+        digitalWrite(TURN_R, HIGH); 
+      } else if(millis() > oldTime + 500) {
+        digitalWrite(TURN_L, LOW);
+        digitalWrite(TURN_R, LOW);
+      }
       digitalWrite(BRAKE, HIGH);
       break;
     case test_state::DEBUG_LEDS:
@@ -103,40 +117,88 @@ void loop() {
       digitalWrite(YELLOW, HIGH);
       break;
     case test_state::DEBUG_BUZZER:
-      digitalWrite(BUZZER, HIGH);
+        analogWrite(BUZZER, 0);
+        delay(50);
+        analogWriteFreq(440);
+        analogWrite(BUZZER, 25);
+        delay(450);
+        analogWrite(BUZZER, 0);
+        delay(50);
+        analogWriteFreq(350);
+        analogWrite(BUZZER, 25);
+        delay(450);
       break;
     case test_state::ENCODER_SERVO:
-      servo.write(140);
+      encoder_position = encoder.read();
+      if (encoder_position > turn_radius) {
+        encoder.write(turn_radius);
+        encoder_position = turn_radius;
+      } else if (encoder_position < -turn_radius) {
+        encoder.write(-(turn_radius));
+        encoder_position = -turn_radius;
+      }
+      servo.write(servo_center + encoder_position);
+      if (digitalRead(ENC_S)) {
+        digitalWrite(GREEN, HIGH);
+        encoder.write(0);
+      } else {
+        digitalWrite(GREEN, LOW);
+      }
+      Serial.println("Encoder Position: " + String(encoder_position));
       break;
     case test_state::LEFT_MOTOR:
       left.forward(127);
+      if(millis() > oldTime + 1000) {
+        oldTime = millis();
+        digitalWrite(TURN_L, HIGH);
+      } else if(millis() > oldTime + 500) {
+        digitalWrite(TURN_L, LOW);
+      }
       break;
     case test_state::RIGHT_MOTOR:
       right.forward(127);
+      if(millis() > oldTime + 1000) {
+        oldTime = millis();        
+        digitalWrite(TURN_R, HIGH);
+        
+      } else if(millis() > oldTime + 500) {        
+        digitalWrite(TURN_R, LOW);
+      }
       break;
     case test_state::FRONT_IR:
-      Serial.println("Front IR: " + String(analogRead(IR_F)));
+      if(millis() > oldTime + 50) {
+        oldTime = millis();
+        Serial.println("Front IR: " + String(analogRead(IR_F)));
+      }
       break;
     case test_state::INSIDE_IR:
-      Serial.println("Inside IR: " + String(analogRead(IR_I)));
+      if(millis() > oldTime + 50) {
+        oldTime = millis();
+        Serial.println("Inside IR: " + String(analogRead(IR_I)));
+      }
       break;
     case test_state::OUTSIDE_IR:
-      Serial.println("Outside IR: " + String(analogRead(IR_O)));
+      if(millis() > oldTime + 50) {
+        oldTime = millis();
+        Serial.println("Outside IR: " + String(analogRead(IR_O)));
+      }
       break;
     case test_state::DOWN_IR:
-      Serial.println("Down IR: " + String(analogRead(IR_D)));
+      if(millis() > oldTime + 50) {
+        oldTime = millis();
+        Serial.println("Down IR: " + String(analogRead(IR_D)));
+      }
       break;
     default:
       break;
   }
-  delay(5);
   if(curr_state != state) {
     resetAll();
   }
 }
 
 void resetAll() {
-  servo.write(90);
+  servo.write(servo_center);
   left.brake();
   right.brake();
   digitalWrite(RED,    LOW);
@@ -146,4 +208,19 @@ void resetAll() {
   digitalWrite(BRAKE,  LOW);
   digitalWrite(TURN_L, LOW);
   digitalWrite(TURN_R, LOW);
+  encoder.write(0);
+}
+
+void setup1() {
+  while (millis() < 1000);
+  display.setup();
+  display.clear();
+  display.displayValue("SafeTown 2023-2024", false);
+  display.displayValue("SafeTown 2023-2024", true);
+  display.displayValue("SafeTown 2023-2024", false);
+  display.displayValue("SafeTown 2023-2024", true);
+}
+
+void loop1() {
+
 }
